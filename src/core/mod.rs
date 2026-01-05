@@ -84,16 +84,6 @@ impl FileSystemType {
             FileSystemType::Fat32,
         ]
     }
-
-    /// Get available filesystems for Linux
-    pub fn linux_options() -> Vec<FileSystemType> {
-        vec![
-            FileSystemType::Ext4,
-            FileSystemType::ExFat,
-            FileSystemType::Fat32,
-            FileSystemType::Ntfs,
-        ]
-    }
 }
 
 /// Errors that can occur during disk operations

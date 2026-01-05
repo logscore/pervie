@@ -37,17 +37,17 @@ impl App {
             isos: vec![
                 Iso {
                     name: "Debian".to_string(),
-                    version: "12.12.0".to_string(),
+                    version: "13".to_string(),
                     arch: "amd64".to_string(),
                     variety: "Netinst".to_string(),
-                    url: "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.12.0-amd64-netinst.iso".to_string(),
+                    url: "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.2.0-amd64-netinst.iso".to_string(),
                 },
                 Iso {
                     name: "Debian".to_string(),
-                    version: "12.12.0".to_string(),
+                    version: "13".to_string(),
                     arch: "arm64".to_string(),
                     variety: "Netinst".to_string(),
-                    url: "https://cdimage.debian.org/debian-cd/current/arm64/iso-cd/debian-12.12.0-arm64-netinst.iso".to_string(),
+                    url: "https://cdimage.debian.org/debian-cd/current/arm64/iso-cd/debian-13.2.0-arm64-netinst.iso".to_string(),
                 },
                 Iso {
                     name: "Ubuntu".to_string(),
@@ -233,17 +233,36 @@ impl App {
         self.state = AppState::InProgress(format!("Starting flash of {}...", iso.name));
 
         let tx = self.operation_tx.clone();
+        let disk_manager = self.disk_manager.clone();
         let flasher = self.flasher.clone();
         let path = device.path.clone();
         let url = iso.url.clone();
 
         tokio::spawn(async move {
-            match flasher.flash(url, path, tx.clone()).await {
+            // 1. Unmount device first
+            let _ = tx.send(AppState::InProgress(format!("Unmounting {}...", path)));
+            if let Err(e) = disk_manager.unmount(&path).await {
+                let _ = tx.send(AppState::Error(format!("Failed to unmount: {}", e)));
+                return;
+            }
+
+            // 2. Prepare for flashing
+            let _ = tx.send(AppState::InProgress(format!("Flashing {}...", iso.name)));
+            
+            // On macOS, use raw disk device for performance and correct access
+            #[cfg(target_os = "macos")]
+            let flash_path = path.replace("/dev/disk", "/dev/rdisk");
+            
+            #[cfg(not(target_os = "macos"))]
+            let flash_path = path.clone();
+
+            // 3. Execute Flash
+            match flasher.flash(url, flash_path.clone(), tx.clone()).await {
                 Ok(()) => {
                     let _ = tx.send(AppState::Success("Flash completed successfully".to_string()));
                 }
                 Err(e) => {
-                    let _ = tx.send(AppState::Error(e.to_string()));
+                    let _ = tx.send(AppState::Error(format!("{:#}", e)));
                 }
             }
         });

@@ -18,7 +18,6 @@ const COLOR_WARNING: Color = Color::Rgb(246, 173, 85);    // Soft orange
 const COLOR_DANGER: Color = Color::Rgb(252, 129, 129);    // Soft red
 const COLOR_MUTED: Color = Color::Rgb(113, 128, 150);     // Gray
 const COLOR_BORDER: Color = Color::Rgb(74, 85, 104);      // Dark gray
-const COLOR_BG_SUBTLE: Color = Color::Rgb(45, 55, 72);    // Subtle bg
 
 /// Draw the main dashboard with device list
 pub fn draw_dashboard(frame: &mut Frame, app: &App) {

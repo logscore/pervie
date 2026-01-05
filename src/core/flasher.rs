@@ -9,7 +9,6 @@ use std::time::Instant;
 use anyhow::{anyhow, Context, Result};
 use futures_util::StreamExt;
 use reqwest::Client;
-use sha2::Sha256;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::core::AppState;
@@ -70,29 +69,52 @@ impl Flasher {
         
         // 4. Spawn Consumer (Writer Thread)
         // We use a dedicated thread for blocking IO to avoid blocking the async runtime
-        let writer_path = device_path.clone();
+        // We use a dedicated thread for blocking IO to avoid blocking the async runtime
+
         let writer_handle = thread::spawn(move || -> Result<()> {
-            let mut written = 0u64;
-            let start = Instant::now();
-            let mut last_progress_update = Instant::now();
+            let mut _written = 0u64;
+            // Manual buffering to ensure ALL writes are aligned (e.g. 1MB blocks).
+            // BufWriter is risky because if input chunk > capacity, it might bypass buffer.
+            const WRITE_BUFFER_SIZE: usize = 1 * 1024 * 1024;
+            let mut buffer: Vec<u8> = Vec::with_capacity(WRITE_BUFFER_SIZE);
 
             for chunk in data_rx {
-                file.write_all(&chunk)
-                    .context("Failed to write to device")?;
+                buffer.extend_from_slice(&chunk);
                 
-                written += chunk.len() as u64;
+                // Write aligned blocks
+                while buffer.len() >= WRITE_BUFFER_SIZE {
+                    // Extract exact buffer size
+                    // We avoid drain(..) for performance on large buffers, but for 1MB it's acceptable.
+                    // Or better: write just the slice and shift using rotation?
+                    // Actually, simple way:
+                    file.write_all(&buffer[..WRITE_BUFFER_SIZE])
+                        .context("Failed to write to device (aligned block)")?;
+                    
+                    // Remove Written part efficiently
+                    buffer.drain(..WRITE_BUFFER_SIZE);
+                    
+                    _written += WRITE_BUFFER_SIZE as u64;
+                }
+            }
 
-                // Sync periodically or handle in producer? 
-                // Actually, the main app state update should probably happen here or be managed by the producer if we want to bubble up progress.
-                // But since this is a blocking thread, we should probably just do the writing.
-                // Wait, we need to send progress updates back to the UI.
-                
-                // Since this runs in a separate thread, we can't easily use the UnboundedSender from tokio directly without it being thread-safe (which it is).
-                // But we need to calculate speed etc.
+            // Flush remaining bytes (unaligned, but it's the end of file)
+            if !buffer.is_empty() {
+                file.write_all(&buffer)
+                    .context("Failed to write to device (final block)")?;
+                _written += buffer.len() as u64;
             }
 
             // Sync disk
-            file.sync_all().context("Failed to sync device")?;
+            if let Err(e) = file.sync_all() {
+                // Ignore "inappropriate ioctl for device" (ENOTTY/25) on macOS/BSD raw devices
+                #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+                if let Some(code) = e.raw_os_error() {
+                     if code == 25 {
+                         return Ok(());
+                     }
+                }
+                return Err(anyhow::Error::new(e).context("Failed to sync device"));
+            }
             
             Ok(())
         });
@@ -109,8 +131,17 @@ impl Flasher {
             let chunk_len = chunk.len();
             
             // Send to writer (blocking if full)
-            // convert Bytes to Vec<u8>
-            data_tx.send(chunk.to_vec()).map_err(|_| anyhow!("Writer thread dropped"))?;
+            if let Err(_) = data_tx.send(chunk.to_vec()) {
+                // Writer thread died, probably due to IO error.
+                // Drop tx to ensure we stop producing.
+                drop(data_tx);
+                
+                // Join writer to get the actual error
+                match writer_handle.join() {
+                    Ok(result) => return result.context("Writer thread failed"),
+                    Err(e) => return Err(anyhow!("Writer thread panicked: {:?}", e)),
+                }
+            }
 
             bytes_processed += chunk_len as u64;
             
