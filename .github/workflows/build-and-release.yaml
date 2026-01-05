@@ -62,7 +62,7 @@ jobs:
       - name: Package
         run: |
           tar czf pervie-${{ matrix.os }}-${{ matrix.arch }}.tar.gz \
-            -C client/target/${{ matrix.target }}/release pervie
+            -C target/${{ matrix.target }}/release pervie
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
