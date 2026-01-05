@@ -44,4 +44,4 @@ else
 fi
 
 rm /tmp/pervie.tar.gz
-echo "Successfully installed $BINARY to path.
+echo "Successfully installed $BINARY to path."
