@@ -16,9 +16,21 @@ pub fn draw(frame: &mut Frame, app: &App) {
             dashboard::draw_dashboard(frame, app);
             prompt::draw_format_menu(frame, app);
         }
+        AppState::IsoSelection => {
+            dashboard::draw_dashboard(frame, app);
+            prompt::draw_iso_selection(frame, app);
+        }
         AppState::ConfirmDestructive(path) => {
             dashboard::draw_dashboard(frame, app);
-            prompt::draw_confirm_dialog(frame, path, &app.input_buffer);
+            prompt::draw_confirm_dialog(frame, path, &app.input_buffer, false);
+        }
+        AppState::ConfirmFlash(path) => {
+            dashboard::draw_dashboard(frame, app);
+            prompt::draw_confirm_dialog(frame, path, &app.input_buffer, true);
+        }
+        AppState::Flashing(progress) => {
+            dashboard::draw_dashboard(frame, app);
+            prompt::draw_flash_progress(frame, progress);
         }
         AppState::InProgress(msg) => {
             dashboard::draw_dashboard(frame, app);

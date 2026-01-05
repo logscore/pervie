@@ -88,13 +88,16 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> anyho
                     AppState::DeviceSelected(_) => {
                         handle_selected_input(app, key.code);
                     }
+                    AppState::IsoSelection => {
+                        handle_iso_selection_input(app, key.code);
+                    }
                     AppState::FormattingMenu => {
                         handle_format_menu_input(app, key.code);
                     }
-                    AppState::ConfirmDestructive(_) => {
+                    AppState::ConfirmDestructive(_) | AppState::ConfirmFlash(_) => {
                         handle_confirm_input(app, key.code);
                     }
-                    AppState::InProgress(_) => {
+                    AppState::Flashing(_) | AppState::InProgress(_) => {
                         // Block input during operations
                     }
                     AppState::Error(_) | AppState::Success(_) => {
@@ -119,6 +122,7 @@ async fn handle_idle_input(app: &mut App, key: KeyCode) {
         KeyCode::Char('r') => {
             let _ = app.refresh_devices().await;
         }
+        KeyCode::Char('i') => app.enter_iso_selection(),
         _ => {}
     }
 }
@@ -146,10 +150,27 @@ fn handle_format_menu_input(app: &mut App, key: KeyCode) {
     }
 }
 
+fn handle_iso_selection_input(app: &mut App, key: KeyCode) {
+    match key {
+        KeyCode::Char('q') => app.should_quit = true,
+        KeyCode::Esc => app.cancel(),
+        KeyCode::Up => app.select_previous_iso(),
+        KeyCode::Down => app.select_next_iso(),
+        KeyCode::Enter => app.flash_selected_iso(),
+        _ => {}
+    }
+}
+
 fn handle_confirm_input(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Esc => app.cancel(),
-        KeyCode::Enter => app.format_selected(),
+        KeyCode::Enter => {
+            match app.state {
+                AppState::ConfirmDestructive(_) => app.format_selected(),
+                AppState::ConfirmFlash(_) => app.start_flashing(),
+                _ => {}
+            }
+        },
         KeyCode::Backspace => {
             app.input_buffer.pop();
         }

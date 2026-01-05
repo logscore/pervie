@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use crate::core::{AppState, Device, FileSystemType};
+use crate::core::{AppState, Device, FileSystemType, Iso};
 use crate::core::disk_ops::DiskManager;
+use crate::core::flasher::Flasher;
 
 /// Main application state
 pub struct App {
@@ -10,8 +11,11 @@ pub struct App {
     pub state: AppState,
     pub input_buffer: String,
     pub disk_manager: Arc<dyn DiskManager>,
+    pub flasher: Arc<Flasher>,
     pub fs_options: Vec<FileSystemType>,
     pub selected_fs_index: usize,
+    pub isos: Vec<Iso>,
+    pub selected_iso_index: usize,
     pub should_quit: bool,
     pub tick: u64,
     pub operation_tx: tokio::sync::mpsc::UnboundedSender<AppState>,
@@ -27,8 +31,78 @@ impl App {
             state: AppState::Idle,
             input_buffer: String::new(),
             disk_manager,
+            flasher: Arc::new(Flasher::new()),
             fs_options: FileSystemType::macos_options(),
             selected_fs_index: 0,
+            isos: vec![
+                Iso {
+                    name: "Debian".to_string(),
+                    version: "12.12.0".to_string(),
+                    arch: "amd64".to_string(),
+                    variety: "Netinst".to_string(),
+                    url: "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.12.0-amd64-netinst.iso".to_string(),
+                },
+                Iso {
+                    name: "Debian".to_string(),
+                    version: "12.12.0".to_string(),
+                    arch: "arm64".to_string(),
+                    variety: "Netinst".to_string(),
+                    url: "https://cdimage.debian.org/debian-cd/current/arm64/iso-cd/debian-12.12.0-arm64-netinst.iso".to_string(),
+                },
+                Iso {
+                    name: "Ubuntu".to_string(),
+                    version: "24.04.3".to_string(),
+                    arch: "amd64".to_string(),
+                    variety: "Live Server".to_string(),
+                    url: "https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso".to_string(),
+                },
+                Iso {
+                    name: "Ubuntu".to_string(),
+                    version: "24.04.3".to_string(),
+                    arch: "arm64".to_string(),
+                    variety: "Live Server".to_string(),
+                    url: "https://cdimage.ubuntu.com/releases/24.04.3/release/ubuntu-24.04.3-live-server-arm64.iso".to_string(),
+                },
+                Iso {
+                    name: "Alpine".to_string(),
+                    version: "3.23.2".to_string(),
+                    arch: "x86_64".to_string(),
+                    variety: "Standard".to_string(),
+                    url: "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-standard-3.23.2-x86_64.iso".to_string(),
+                },
+                Iso {
+                    name: "Alpine".to_string(),
+                    version: "3.23.2".to_string(),
+                    arch: "aarch64".to_string(),
+                    variety: "Standard".to_string(),
+                    url: "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-standard-3.23.2-aarch64.iso".to_string(),
+                },
+                Iso {
+                    name: "Arch Linux".to_string(),
+                    version: "2025.12.01".to_string(),
+                    arch: "x86_64".to_string(),
+                    variety: "Standard".to_string(),
+                    url: "https://geo.mirror.pkgbuild.com/iso/2025.12.01/archlinux-2025.12.01-x86_64.iso".to_string(),
+                },
+                // Windows 11 - Reserved for future S3 bucket implementation
+                /*
+                Iso {
+                    name: "Windows 11".to_string(),
+                    version: "23H2".to_string(),
+                    arch: "x64".to_string(),
+                    variety: "English Intl".to_string(),
+                    url: "https://www.microsoft.com/software-download/windows11".to_string(),
+                },
+                Iso {
+                    name: "Windows 11".to_string(),
+                    version: "23H2 (ARM)".to_string(),
+                    arch: "arm64".to_string(),
+                    variety: "Insider VHDX".to_string(),
+                    url: "https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewARM64".to_string(),
+                },
+                */
+            ],
+            selected_iso_index: 0,
             should_quit: false,
             tick: 0,
             operation_tx,
@@ -102,6 +176,77 @@ impl App {
         self.state = AppState::FormattingMenu;
         self.selected_fs_index = 0;
         self.input_buffer.clear();
+    }
+
+    pub fn enter_iso_selection(&mut self) {
+        self.state = AppState::IsoSelection;
+        self.selected_iso_index = 0;
+    }
+
+    pub fn select_next_iso(&mut self) {
+        if !self.isos.is_empty() {
+            self.selected_iso_index = (self.selected_iso_index + 1) % self.isos.len();
+        }
+    }
+
+    pub fn select_previous_iso(&mut self) {
+        if !self.isos.is_empty() {
+            if self.selected_iso_index == 0 {
+                self.selected_iso_index = self.isos.len() - 1;
+            } else {
+                self.selected_iso_index -= 1;
+            }
+        }
+    }
+
+    pub fn selected_iso(&self) -> Option<&Iso> {
+        self.isos.get(self.selected_iso_index)
+    }
+
+    pub fn flash_selected_iso(&mut self) {
+        if let Some(device) = self.selected_device().cloned() {
+            self.state = AppState::ConfirmFlash(device.path);
+            self.input_buffer.clear();
+        }
+    }
+
+    pub fn start_flashing(&mut self) {
+        let device = match self.selected_device().cloned() {
+            Some(d) => d,
+            None => return,
+        };
+        
+        // Verify confirmation
+        if self.input_buffer != device.path {
+            self.state = AppState::Error(format!(
+                "Confirmation mismatch. Expected '{}', got '{}'",
+                device.path, self.input_buffer
+            ));
+            return;
+        }
+
+        let iso = match self.selected_iso().cloned() {
+            Some(i) => i,
+            None => return,
+        };
+
+        self.state = AppState::InProgress(format!("Starting flash of {}...", iso.name));
+
+        let tx = self.operation_tx.clone();
+        let flasher = self.flasher.clone();
+        let path = device.path.clone();
+        let url = iso.url.clone();
+
+        tokio::spawn(async move {
+            match flasher.flash(url, path, tx.clone()).await {
+                Ok(()) => {
+                    let _ = tx.send(AppState::Success("Flash completed successfully".to_string()));
+                }
+                Err(e) => {
+                    let _ = tx.send(AppState::Error(e.to_string()));
+                }
+            }
+        });
     }
 
     pub fn enter_confirm_mode(&mut self) {

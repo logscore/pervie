@@ -1,4 +1,7 @@
 pub mod disk_ops;
+pub mod flasher;
+
+use self::flasher::FlashProgress;
 
 use thiserror::Error;
 
@@ -22,9 +25,22 @@ pub enum AppState {
     DeviceSelected(usize),
     FormattingMenu,
     ConfirmDestructive(String),
+    ConfirmFlash(String),
+    IsoSelection,
+    Flashing(FlashProgress),
     InProgress(String),
     Error(String),
     Success(String),
+}
+
+/// Represents an ISO image available for flashing
+#[derive(Debug, Clone)]
+pub struct Iso {
+    pub name: String,
+    pub version: String,
+    pub arch: String,
+    pub url: String,
+    pub variety: String,
 }
 
 /// Supported filesystem types

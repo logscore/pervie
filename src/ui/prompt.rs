@@ -7,6 +7,9 @@ use ratatui::{
 };
 
 use crate::app::App;
+use crate::core::flasher::FlashProgress;
+use crate::utils::bytes_to_human;
+use ratatui::widgets::Gauge;
 
 pub enum MessageType {
     Info,
@@ -48,14 +51,72 @@ pub fn draw_format_menu(frame: &mut Frame, app: &App) {
     frame.render_widget(list, inner);
 }
 
-/// Draw confirmation dialog for destructive operations
-pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str) {
-    let area = centered_rect(60, 40, frame.area());
+/// Draw the ISO selection menu
+pub fn draw_iso_selection(frame: &mut Frame, app: &App) {
+    let area = centered_rect(70, 70, frame.area());
 
     frame.render_widget(Clear, area);
 
     let block = Block::default()
-        .title(" ⚠️  CONFIRM FORMAT ")
+        .title(" Select ISO Image ")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Magenta));
+
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let chunks = Layout::vertical([
+        Constraint::Length(2),
+        Constraint::Min(1),
+    ]).split(inner);
+
+    let header_text = format!(
+        "   {:<12} | {:<10} | {:<8} | {}",
+        "DISTRO", "VERSION", "ARCH", "VARIETY"
+    );
+     let header = Paragraph::new(header_text)
+        .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::BOTTOM));
+    
+    frame.render_widget(header, chunks[0]);
+
+    let items: Vec<ListItem> = app
+        .isos
+        .iter()
+        .enumerate()
+        .map(|(i, iso)| {
+            let content = format!(
+                "{:<12} | {:<10} | {:<8} | {}",
+                iso.name,
+                iso.version,
+                iso.arch,
+                iso.variety
+            );
+            
+            let style = if i == app.selected_iso_index {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            } else {
+                Style::default()
+            };
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list = List::new(items);
+    frame.render_widget(list, chunks[1]);
+}
+
+/// Draw confirmation dialog for destructive operations
+pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str, is_flash: bool) {
+    let area = centered_rect(60, 40, frame.area());
+
+    frame.render_widget(Clear, area);
+
+    let title = if is_flash { " ⚠️  CONFIRM FLASH " } else { " ⚠️  CONFIRM FORMAT " };
+    let block = Block::default()
+        .title(title)
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Red));
 
@@ -70,9 +131,15 @@ pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str) {
     ])
     .split(inner);
 
+    let warning_text = if is_flash {
+        "This will OVERWRITE the device with the ISO image!"
+    } else {
+        "This will PERMANENTLY ERASE all data!"
+    };
+
     let warning = Paragraph::new(Line::from(vec![
         Span::styled("WARNING: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        Span::raw("This will PERMANENTLY ERASE all data!"),
+        Span::raw(warning_text),
     ]));
     frame.render_widget(warning, chunks[0]);
 
@@ -83,6 +150,42 @@ pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str) {
     let input_display = Paragraph::new(input)
         .block(Block::default().borders(Borders::ALL).title(" Input ").style(Style::default().fg(Color::White)));
     frame.render_widget(input_display, chunks[2]);
+}
+
+pub fn draw_flash_progress(frame: &mut Frame, progress: &FlashProgress) {
+    let area = centered_rect(60, 25, frame.area());
+    frame.render_widget(Clear, area);
+    
+    let block = Block::default()
+        .title(" Flashing ISO... ")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Cyan));
+    
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let chunks = Layout::vertical([
+        Constraint::Length(2),
+        Constraint::Length(3),
+        Constraint::Length(1),
+    ]).split(inner);
+
+    let info = Paragraph::new(format!(
+        "{}/{} ({:.1} MB/s)", 
+        bytes_to_human(progress.bytes_written), 
+        bytes_to_human(progress.total_bytes),
+        progress.speed_mbps
+    )).alignment(Alignment::Center);
+    
+    frame.render_widget(info, chunks[0]);
+
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::NONE))
+        .gauge_style(Style::default().fg(Color::Green))
+        .ratio(progress.percent / 100.0)
+        .label(format!("{:.1}%", progress.percent));
+    
+    frame.render_widget(gauge, chunks[1]);
 }
 
 /// Draw status/info messages

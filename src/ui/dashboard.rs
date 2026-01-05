@@ -198,6 +198,7 @@ fn draw_help_bar(frame: &mut Frame, area: Rect, app: &App) {
             ("↑↓", "Navigate"),
             ("Enter", "Select"),
             ("r", "Refresh"),
+            ("i", "Flash ISO"),
             ("q", "Quit"),
         ],
         AppState::DeviceSelected(_) => vec![
