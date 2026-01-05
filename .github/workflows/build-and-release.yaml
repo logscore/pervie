@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: linux
+            target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+          - arch: arm64
+            os: linux
+            target: aarch64-unknown-linux-musl
+            runner: ubuntu-latest
+          - arch: amd64
+            os: macos
+            target: x86_64-apple-darwin
+            runner: macos-latest
+          - arch: arm64
+            os: macos
+            target: aarch64-apple-darwin
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          working-directory: .
+
+      - name: Install zig
+        if: matrix.os == 'linux'
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.12.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.os == 'linux'
+        run: cargo install cargo-zigbuild
+
+      - name: Build static binary
+        working-directory: .
+        run: |
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            RUSTFLAGS="-C target-feature=+crt-static" cargo zigbuild --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package
+        run: |
+          tar czf pervie-${{ matrix.os }}-${{ matrix.arch }}.tar.gz \
+            -C client/target/${{ matrix.target }}/release pervie
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: pervie-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
