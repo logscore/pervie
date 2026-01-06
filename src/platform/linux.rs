@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::process::Command;
+use sudo::{RunningAs, check};
 
 use crate::core::disk_ops::DiskManager;
 use crate::core::{Device, DiskError, FileSystemType};
@@ -232,6 +233,6 @@ impl DiskManager for LinuxDiskManager {
     }
 
     fn has_privileges(&self) -> bool {
-        unsafe { libc::getuid() == 0 }
+        matches!(check(), RunningAs::Root | RunningAs::Suid)
     }
 }
