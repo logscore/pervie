@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::app::App;
@@ -65,19 +65,20 @@ pub fn draw_iso_selection(frame: &mut Frame, app: &App) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let chunks = Layout::vertical([
-        Constraint::Length(2),
-        Constraint::Min(1),
-    ]).split(inner);
+    let chunks = Layout::vertical([Constraint::Length(2), Constraint::Min(1)]).split(inner);
 
     let header_text = format!(
         "   {:<12} | {:<10} | {:<8} | {}",
         "DISTRO", "VERSION", "ARCH", "VARIETY"
     );
-     let header = Paragraph::new(header_text)
-        .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+    let header = Paragraph::new(header_text)
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::BOTTOM));
-    
+
     frame.render_widget(header, chunks[0]);
 
     let items: Vec<ListItem> = app
@@ -87,12 +88,9 @@ pub fn draw_iso_selection(frame: &mut Frame, app: &App) {
         .map(|(i, iso)| {
             let content = format!(
                 "{:<12} | {:<10} | {:<8} | {}",
-                iso.name,
-                iso.version,
-                iso.arch,
-                iso.variety
+                iso.name, iso.version, iso.arch, iso.variety
             );
-            
+
             let style = if i == app.selected_iso_index {
                 Style::default()
                     .fg(Color::Yellow)
@@ -114,7 +112,11 @@ pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str, is
 
     frame.render_widget(Clear, area);
 
-    let title = if is_flash { " ⚠️  CONFIRM FLASH " } else { " ⚠️  CONFIRM FORMAT " };
+    let title = if is_flash {
+        " ⚠️  CONFIRM FLASH "
+    } else {
+        " ⚠️  CONFIRM FORMAT "
+    };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
@@ -138,7 +140,10 @@ pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str, is
     };
 
     let warning = Paragraph::new(Line::from(vec![
-        Span::styled("WARNING: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "WARNING: ",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ),
         Span::raw(warning_text),
     ]));
     frame.render_widget(warning, chunks[0]);
@@ -147,20 +152,24 @@ pub fn draw_confirm_dialog(frame: &mut Frame, device_path: &str, input: &str, is
         .style(Style::default().fg(Color::Yellow));
     frame.render_widget(instruction, chunks[1]);
 
-    let input_display = Paragraph::new(input)
-        .block(Block::default().borders(Borders::ALL).title(" Input ").style(Style::default().fg(Color::White)));
+    let input_display = Paragraph::new(input).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Input ")
+            .style(Style::default().fg(Color::White)),
+    );
     frame.render_widget(input_display, chunks[2]);
 }
 
 pub fn draw_flash_progress(frame: &mut Frame, progress: &FlashProgress) {
     let area = centered_rect(60, 25, frame.area());
     frame.render_widget(Clear, area);
-    
+
     let block = Block::default()
         .title(" Flashing ISO... ")
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Cyan));
-    
+
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -168,15 +177,17 @@ pub fn draw_flash_progress(frame: &mut Frame, progress: &FlashProgress) {
         Constraint::Length(2),
         Constraint::Length(3),
         Constraint::Length(1),
-    ]).split(inner);
+    ])
+    .split(inner);
 
     let info = Paragraph::new(format!(
-        "{}/{} ({:.1} MB/s)", 
-        bytes_to_human(progress.bytes_written), 
+        "{}/{} ({:.1} MB/s)",
+        bytes_to_human(progress.bytes_written),
         bytes_to_human(progress.total_bytes),
         progress.speed_mbps
-    )).alignment(Alignment::Center);
-    
+    ))
+    .alignment(Alignment::Center);
+
     frame.render_widget(info, chunks[0]);
 
     let gauge = Gauge::default()
@@ -184,7 +195,7 @@ pub fn draw_flash_progress(frame: &mut Frame, progress: &FlashProgress) {
         .gauge_style(Style::default().fg(Color::Green))
         .ratio(progress.percent / 100.0)
         .label(format!("{:.1}%", progress.percent));
-    
+
     frame.render_widget(gauge, chunks[1]);
 }
 
@@ -208,18 +219,14 @@ pub fn draw_status_message(frame: &mut Frame, app: &App, message: &str, msg_type
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let chunks = Layout::vertical([
-        Constraint::Min(1),
-        Constraint::Length(1),
-    ])
-    .split(inner);
+    let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
 
     // Spinner for in-progress operations
     if matches!(msg_type, MessageType::Info) {
         let spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
         let frame_idx = app.tick as usize % spinner_frames.len();
         let spinner = spinner_frames[frame_idx];
-        
+
         let text = Paragraph::new(format!("{} {}", spinner, message))
             .alignment(Alignment::Center)
             .wrap(Wrap { trim: true })
@@ -236,7 +243,7 @@ pub fn draw_status_message(frame: &mut Frame, app: &App, message: &str, msg_type
     let footer = Paragraph::new("Press Esc/Enter to dismiss")
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::DarkGray));
-    
+
     // Only show footer for non-info messages (Info is usually InProgress)
     if !matches!(msg_type, MessageType::Info) {
         frame.render_widget(footer, chunks[1]);

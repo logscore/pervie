@@ -8,7 +8,7 @@ Why is it called Pervie? Because it's good at flashing ( ͡° ͜ʖ ͡°)
 
 - Reformat storage drives into exFAT, FAT32, or NTFS.
 - Safely unmount and eject storage drives.
-- **[UNDER DEVELOPMENT]** Flash ISOs from remote servers to your local drive. No need to download the ISO to your computer first.
+- Flash ISOs from remote servers to your usb drive. No need to download the ISO to your computer first.
 
 ## Installation
 
