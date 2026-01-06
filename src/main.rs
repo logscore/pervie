@@ -20,20 +20,23 @@ use crate::platform::get_disk_manager;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Safety check: Validate terminal size BEFORE entering alternate screen.
-    // This prevents a race condition on Linux where querying size immediately after
-    // switching to alternate screen can return garbage values, causing massive
-    // memory allocation attempts (e.g. 170TB) and segfaults.
+    // Safety check: Validate terminal size BEFORE entering raw mode or alternate screen.
     let (cols, rows) = crossterm::terminal::size()?;
-    if cols > 1000 || rows > 1000 || cols == 0 || rows == 0 {
+    if cols == 0 || rows == 0 || cols > 1000 || rows > 1000 {
         anyhow::bail!(
-            "Invalid terminal size detected ({}x{}). Please try again.",
+            "Invalid terminal size detected ({}x{}). Please ensure you're running in a valid terminal.",
             cols,
             rows
         );
     }
 
-    // Setup terminal (now safe to enter alternate screen)
+    // Escalate privileges if needed - MUST be before raw mode
+    // This will prompt for sudo password in the terminal
+    if let Err(e) = crate::utils::escalate_if_needed() {
+        eprintln!("Warning: Could not escalate privileges: {}. Some operations may fail.", e);
+    }
+
+    // Now safe to setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -44,12 +47,6 @@ async fn main() -> anyhow::Result<()> {
     // Create app
     let disk_manager = get_disk_manager();
     let mut app = App::new(disk_manager);
-
-    // Check privileges - warn but don't exit
-    if !app.disk_manager.has_privileges() {
-        app.state =
-            AppState::Error("Warning: Not running as root. Some operations may fail.".to_string());
-    }
 
     // Initial device scan
     let _ = app.refresh_devices().await;

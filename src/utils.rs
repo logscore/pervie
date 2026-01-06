@@ -1,3 +1,24 @@
+use elevate::RunningAs;
+use std::sync::OnceLock;
+
+static IS_ROOT: OnceLock<bool> = OnceLock::new();
+
+/// Returns whether the current process is running as root/admin.
+/// The result is cached on first call using OnceLock.
+pub fn is_root() -> bool {
+    *IS_ROOT.get_or_init(|| matches!(elevate::check(), RunningAs::Root | RunningAs::Suid))
+}
+
+/// Attempts to escalate privileges using sudo/doas/pkexec if not already root.
+/// This MUST be called BEFORE entering raw mode (before enable_raw_mode()).
+pub fn escalate_if_needed() -> Result<(), Box<dyn std::error::Error>> {
+    if !is_root() {
+        println!("Pervie requires root privileges for disk discovery and flashing operations.");
+        elevate::escalate_if_needed()?;
+    }
+    Ok(())
+}
+
 /// Convert bytes to human-readable format (KB, MB, GB, TB)
 pub fn bytes_to_human(bytes: u64) -> String {
     const KB: u64 = 1024;

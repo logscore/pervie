@@ -184,7 +184,7 @@ impl DiskManager for MacOSDiskManager {
     }
 
     fn has_privileges(&self) -> bool {
-        unsafe { libc::getuid() == 0 }
+        crate::utils::is_root()
     }
 }
 
