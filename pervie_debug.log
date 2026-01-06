@@ -1,0 +1,86 @@
+[1767678600410] Main started
+[1767678600413] Getting disk manager
+[1767678600415] Creating app
+[1767678600425] Initial device scan
+[1767678600427] [linux] Running lsblk
+[1767678600432] [linux] lsblk output received, size: 1613
+[1767678600434] [linux] Parsing lsblk output
+[1767678600440] Enabling raw mode
+[1767678600443] Entering alternate screen
+[1767678600445] Creating backend
+[1767678600447] Creating terminal
+[1767678600449] Checking privileges
+[1767678600454] Starting run_app
+[1767678602749] run_app finished with result: Ok(())
+[1767678674161] Main started
+[1767678674167] Getting disk manager
+[1767678674173] Creating app
+[1767678674179] Initial device scan
+[1767678674248] Enabling raw mode
+[1767678674252] Entering alternate screen
+[1767678674256] Creating backend
+[1767678674260] Creating terminal
+[1767678674264] Checking privileges
+[1767678674268] Starting run_app
+[1767678678684] run_app finished with result: Ok(())
+[1767678679796] Main started
+[1767678679803] Getting disk manager
+[1767678679807] Creating app
+[1767678679811] Initial device scan
+[1767678679859] Enabling raw mode
+[1767678679863] Entering alternate screen
+[1767678679867] Creating backend
+[1767678679871] Creating terminal
+[1767678679875] Checking privileges
+[1767678679879] Starting run_app
+[1767678680496] run_app finished with result: Ok(())
+[1767678681479] Main started
+[1767678681485] Getting disk manager
+[1767678681489] Creating app
+[1767678681493] Initial device scan
+[1767678681544] Enabling raw mode
+[1767678681548] Entering alternate screen
+[1767678681552] Creating backend
+[1767678681556] Creating terminal
+[1767678681560] Checking privileges
+[1767678681564] Starting run_app
+[1767678682280] run_app finished with result: Ok(())
+[1767678723281] Main started
+[1767678723284] Getting disk manager
+[1767678723286] Creating app
+[1767678723295] Initial device scan
+[1767678723297] [linux] Running lsblk
+[1767678723301] [linux] lsblk output received, size: 1613
+[1767678723304] [linux] Parsing lsblk output
+[1767678723308] Enabling raw mode
+[1767678723309] Entering alternate screen
+[1767678723311] Creating backend
+[1767678723313] Creating terminal
+[1767678723315] Checking privileges
+[1767678723318] Starting run_app
+[1767678726022] run_app finished with result: Ok(())
+[1767678729233] Main started
+[1767678729236] Getting disk manager
+[1767678729239] Creating app
+[1767678729246] Initial device scan
+[1767678729249] [linux] Running lsblk
+[1767678729253] [linux] lsblk output received, size: 1613
+[1767678729256] [linux] Parsing lsblk output
+[1767678729259] Enabling raw mode
+[1767678729261] Entering alternate screen
+[1767678729263] Creating backend
+[1767678729265] Creating terminal
+[1767678729267] Checking privileges
+[1767678729269] Starting run_app
+[1767678731044] run_app finished with result: Ok(())
+[1767678808911] Main started
+[1767678808918] Getting disk manager
+[1767678808922] Creating app
+[1767678808927] Initial device scan
+[1767678808974] Enabling raw mode
+[1767678808978] Entering alternate screen
+[1767678808983] Creating backend
+[1767678808986] Creating terminal
+[1767678808991] Checking privileges
+[1767678808994] Starting run_app
+[1767678810546] run_app finished with result: Ok(())
