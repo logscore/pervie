@@ -19,6 +19,9 @@ pub trait DiskManager: Send + Sync {
         label: &str,
     ) -> Result<(), DiskError>;
 
+    /// Ejects the device (safely remove)
+    async fn eject(&self, path: &str) -> Result<(), DiskError>;
+
     /// Checks if running with elevated privileges (root/admin)
     fn has_privileges(&self) -> bool;
 }

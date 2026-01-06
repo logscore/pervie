@@ -178,6 +178,21 @@ impl DiskManager for LinuxDiskManager {
         Ok(())
     }
 
+    async fn eject(&self, path: &str) -> Result<(), DiskError> {
+        if !self.has_privileges() {
+            return Err(DiskError::InsufficientPrivileges);
+        }
+
+        let output = Command::new("eject").arg(path).output()?;
+
+        if !output.status.success() {
+             let stderr = String::from_utf8_lossy(&output.stderr);
+             return Err(DiskError::CommandFailed(stderr.to_string()));
+        }
+
+        Ok(())
+    }
+
     async fn format(
         &self,
         path: &str,

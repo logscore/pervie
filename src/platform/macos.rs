@@ -166,6 +166,23 @@ impl DiskManager for MacOSDiskManager {
         Ok(())
     }
 
+    async fn eject(&self, path: &str) -> Result<(), DiskError> {
+        if !self.has_privileges() {
+            return Err(DiskError::InsufficientPrivileges);
+        }
+
+        let output = Command::new("diskutil")
+            .args(["eject", path])
+            .output()?;
+
+        if !output.status.success() {
+             let stderr = String::from_utf8_lossy(&output.stderr);
+             return Err(DiskError::CommandFailed(stderr.to_string()));
+        }
+
+        Ok(())
+    }
+
     fn has_privileges(&self) -> bool {
         unsafe { libc::getuid() == 0 }
     }

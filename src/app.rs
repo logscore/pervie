@@ -259,7 +259,14 @@ impl App {
             // 3. Execute Flash
             match flasher.flash(url, flash_path.clone(), tx.clone()).await {
                 Ok(()) => {
-                    let _ = tx.send(AppState::Success("Flash completed successfully".to_string()));
+                    // 4. Auto-eject on success
+                    let _ = tx.send(AppState::InProgress("Ejecting device...".to_string()));
+                    if let Err(e) = disk_manager.eject(&path).await {
+                         // Warning instead of error? For now, let's just warn but consider it success
+                         let _ = tx.send(AppState::Success(format!("Flash complete, but eject failed: {}", e)));
+                    } else {
+                        let _ = tx.send(AppState::Success("Flash complete! Device ejected safely.".to_string()));
+                    }
                 }
                 Err(e) => {
                     let _ = tx.send(AppState::Error(format!("{:#}", e)));
