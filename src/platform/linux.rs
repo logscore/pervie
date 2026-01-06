@@ -232,10 +232,6 @@ impl DiskManager for LinuxDiskManager {
     }
 
     fn has_privileges(&self) -> bool {
-        Command::new("id")
-            .arg("-u")
-            .output()
-            .map(|output| String::from_utf8_lossy(&output.stdout).trim() == "0")
-            .unwrap_or(false)
+        unsafe { libc::getuid() == 0 }
     }
 }
