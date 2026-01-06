@@ -20,28 +20,26 @@ use crate::platform::get_disk_manager;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Setup terminal
+    // Safety check: Validate terminal size BEFORE entering alternate screen.
+    // This prevents a race condition on Linux where querying size immediately after
+    // switching to alternate screen can return garbage values, causing massive
+    // memory allocation attempts (e.g. 170TB) and segfaults.
+    let (cols, rows) = crossterm::terminal::size()?;
+    if cols > 1000 || rows > 1000 || cols == 0 || rows == 0 {
+        anyhow::bail!(
+            "Invalid terminal size detected ({}x{}). Please try again.",
+            cols,
+            rows
+        );
+    }
+
+    // Setup terminal (now safe to enter alternate screen)
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    
-    // Safety check: Validate terminal size before creating the Terminal object
-    // This prevents the TUI from attempting astronomical memory allocations (e.g. 170TB, yeah it actally tried)
-    // if the terminal query returns corrupted/uninitialized data during high contention.
-    let (cols, rows) = crossterm::terminal::size()?;
-    if cols > 1000 || rows > 1000 {
-        // Restore terminal state before exiting
-        let _ = disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
-        anyhow::bail!("Invalid terminal size detected ({}x{}). This might be due to a race condition during startup. Please try again.", cols, rows);
-    }
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
-    // Create app
-    let disk_manager = get_disk_manager();
-    let mut app = App::new(disk_manager);
 
     // Create app
     let disk_manager = get_disk_manager();
