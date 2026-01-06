@@ -232,6 +232,6 @@ impl DiskManager for LinuxDiskManager {
     }
 
     fn has_privileges(&self) -> bool {
-        unsafe { libc::getuid() == 0 }
+        crate::utils::is_root()
     }
 }
