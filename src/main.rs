@@ -30,6 +30,12 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
+    // Escalate privileges if needed - MUST be before raw mode
+    // This will prompt for sudo password in the terminal
+    if let Err(e) = crate::utils::escalate_if_needed() {
+        eprintln!("Warning: Could not escalate privileges: {}. Some operations may fail.", e);
+    }
+
     // Now safe to setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -41,12 +47,6 @@ async fn main() -> anyhow::Result<()> {
     // Create app
     let disk_manager = get_disk_manager();
     let mut app = App::new(disk_manager);
-
-    // Check privileges - warn but don't exit
-    if !app.disk_manager.has_privileges() {
-        app.state =
-            AppState::Error("Warning: Not running as root. Some operations may fail.".to_string());
-    }
 
     // Initial device scan
     let _ = app.refresh_devices().await;
