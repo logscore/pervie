@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::core::{AppState, Device, FileSystemType, Iso};
 use crate::core::disk_ops::DiskManager;
 use crate::core::flasher::Flasher;
+use crate::core::{AppState, Device, FileSystemType, Iso};
 
 /// Main application state
 pub struct App {
@@ -54,7 +54,7 @@ impl App {
                     version: "24.04.3".to_string(),
                     arch: "amd64".to_string(),
                     variety: "Live Server".to_string(),
-                    url: "https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso".to_string(),
+                    url: "https://mirror.pilotfiber.com/ubuntu-iso/24.04.3/ubuntu-24.04.3-desktop-amd64.iso".to_string(),
                 },
                 Iso {
                     name: "Ubuntu".to_string(),
@@ -179,8 +179,14 @@ impl App {
     }
 
     pub fn enter_iso_selection(&mut self) {
-        self.state = AppState::IsoSelection;
-        self.selected_iso_index = 0;
+        if let Some(device) = self.selected_device() {
+            if device.is_protected {
+                self.state = AppState::Error("Cannot flash protected (system) device!".to_string());
+                return;
+            }
+            self.state = AppState::IsoSelection;
+            self.selected_iso_index = 0;
+        }
     }
 
     pub fn select_next_iso(&mut self) {
@@ -215,7 +221,7 @@ impl App {
             Some(d) => d,
             None => return,
         };
-        
+
         // Verify confirmation
         if self.input_buffer != device.path {
             self.state = AppState::Error(format!(
@@ -248,11 +254,11 @@ impl App {
 
             // 2. Prepare for flashing
             let _ = tx.send(AppState::InProgress(format!("Flashing {}...", iso.name)));
-            
+
             // On macOS, use raw disk device for performance and correct access
             #[cfg(target_os = "macos")]
             let flash_path = path.replace("/dev/disk", "/dev/rdisk");
-            
+
             #[cfg(not(target_os = "macos"))]
             let flash_path = path.clone();
 
@@ -262,10 +268,15 @@ impl App {
                     // 4. Auto-eject on success
                     let _ = tx.send(AppState::InProgress("Ejecting device...".to_string()));
                     if let Err(e) = disk_manager.eject(&path).await {
-                         // Warning instead of error? For now, let's just warn but consider it success
-                         let _ = tx.send(AppState::Success(format!("Flash complete, but eject failed: {}", e)));
+                        // Warning instead of error? For now, let's just warn but consider it success
+                        let _ = tx.send(AppState::Success(format!(
+                            "Flash complete, but eject failed: {}",
+                            e
+                        )));
                     } else {
-                        let _ = tx.send(AppState::Success("Flash complete! Device ejected safely.".to_string()));
+                        let _ = tx.send(AppState::Success(
+                            "Flash complete! Device ejected safely.".to_string(),
+                        ));
                     }
                 }
                 Err(e) => {
@@ -338,7 +349,11 @@ impl App {
             None => return,
         };
 
-        self.state = AppState::InProgress(format!("Formatting {} as {}...", device.path, fs_type.display_name()));
+        self.state = AppState::InProgress(format!(
+            "Formatting {} as {}...",
+            device.path,
+            fs_type.display_name()
+        ));
 
         let tx = self.operation_tx.clone();
         let disk_manager = self.disk_manager.clone();

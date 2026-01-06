@@ -10,7 +10,7 @@ use std::time::Duration;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::prelude::*;
 
@@ -33,9 +33,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Check privileges - warn but don't exit
     if !app.disk_manager.has_privileges() {
-        app.state = AppState::Error(
-            "Warning: Not running as root. Some operations may fail.".to_string(),
-        );
+        app.state =
+            AppState::Error("Warning: Not running as root. Some operations may fail.".to_string());
     }
 
     // Initial device scan
@@ -122,7 +121,6 @@ async fn handle_idle_input(app: &mut App, key: KeyCode) {
         KeyCode::Char('r') => {
             let _ = app.refresh_devices().await;
         }
-        KeyCode::Char('i') => app.enter_iso_selection(),
         _ => {}
     }
 }
@@ -135,6 +133,7 @@ fn handle_selected_input(app: &mut App, key: KeyCode) {
         KeyCode::Down => app.select_next(),
         KeyCode::Char('u') => app.unmount_selected(),
         KeyCode::Char('f') => app.enter_format_menu(),
+        KeyCode::Char('i') => app.enter_iso_selection(),
         _ => {}
     }
 }
@@ -164,12 +163,10 @@ fn handle_iso_selection_input(app: &mut App, key: KeyCode) {
 fn handle_confirm_input(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Esc => app.cancel(),
-        KeyCode::Enter => {
-            match app.state {
-                AppState::ConfirmDestructive(_) => app.format_selected(),
-                AppState::ConfirmFlash(_) => app.start_flashing(),
-                _ => {}
-            }
+        KeyCode::Enter => match app.state {
+            AppState::ConfirmDestructive(_) => app.format_selected(),
+            AppState::ConfirmFlash(_) => app.start_flashing(),
+            _ => {}
         },
         KeyCode::Backspace => {
             app.input_buffer.pop();

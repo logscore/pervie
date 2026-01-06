@@ -1,10 +1,10 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style, Stylize},
     symbols::border,
     text::{Line, Span},
     widgets::{Block, Borders, Cell, Padding, Paragraph, Row, Table},
-    Frame,
 };
 
 use crate::app::App;
@@ -12,12 +12,12 @@ use crate::core::AppState;
 use crate::utils::bytes_to_human;
 
 // Design tokens for consistent styling
-const COLOR_PRIMARY: Color = Color::Rgb(99, 179, 237);    // Soft blue
-const COLOR_SUCCESS: Color = Color::Rgb(104, 211, 145);   // Soft green
-const COLOR_WARNING: Color = Color::Rgb(246, 173, 85);    // Soft orange
-const COLOR_DANGER: Color = Color::Rgb(252, 129, 129);    // Soft red
-const COLOR_MUTED: Color = Color::Rgb(113, 128, 150);     // Gray
-const COLOR_BORDER: Color = Color::Rgb(74, 85, 104);      // Dark gray
+const COLOR_PRIMARY: Color = Color::Rgb(99, 179, 237); // Soft blue
+const COLOR_SUCCESS: Color = Color::Rgb(104, 211, 145); // Soft green
+const COLOR_WARNING: Color = Color::Rgb(246, 173, 85); // Soft orange
+const COLOR_DANGER: Color = Color::Rgb(252, 129, 129); // Soft red
+const COLOR_MUTED: Color = Color::Rgb(113, 128, 150); // Gray
+const COLOR_BORDER: Color = Color::Rgb(74, 85, 104); // Dark gray
 
 /// Draw the main dashboard with device list
 pub fn draw_dashboard(frame: &mut Frame, app: &App) {
@@ -27,9 +27,9 @@ pub fn draw_dashboard(frame: &mut Frame, app: &App) {
     let inner_area = area.inner(Margin::new(2, 1));
 
     let chunks = Layout::vertical([
-        Constraint::Length(5),  // Header
-        Constraint::Min(8),     // Device table
-        Constraint::Length(3),  // Help bar
+        Constraint::Length(5), // Header
+        Constraint::Min(8),    // Device table
+        Constraint::Length(3), // Help bar
     ])
     .split(inner_area);
 
@@ -197,12 +197,12 @@ fn draw_help_bar(frame: &mut Frame, area: Rect, app: &App) {
             ("↑↓", "Navigate"),
             ("Enter", "Select"),
             ("r", "Refresh"),
-            ("i", "Flash ISO"),
             ("q", "Quit"),
         ],
         AppState::DeviceSelected(_) => vec![
             ("u", "Unmount"),
             ("f", "Format"),
+            ("i", "Flash ISO"),
             ("Esc", "Back"),
             ("q", "Quit"),
         ],

@@ -1,12 +1,10 @@
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::PathBuf;
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use std::thread;
 use std::time::Instant;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use futures_util::StreamExt;
 use reqwest::Client;
 use tokio::sync::mpsc::UnboundedSender;
@@ -60,13 +58,14 @@ impl Flasher {
             .read(false)
             .open(&device_path)
             .context(format!("Failed to open device {}", device_path))?;
-        
+
         // TODO: Windows implementation
 
         // 3. Setup Producer-Consumer channels
         // We use a sync channel for backpressure handling
-        let (data_tx, data_rx): (SyncSender<Vec<u8>>, Receiver<Vec<u8>>) = sync_channel(CHANNEL_BOUND);
-        
+        let (data_tx, data_rx): (SyncSender<Vec<u8>>, Receiver<Vec<u8>>) =
+            sync_channel(CHANNEL_BOUND);
+
         // 4. Spawn Consumer (Writer Thread)
         // We use a dedicated thread for blocking IO to avoid blocking the async runtime
         // We use a dedicated thread for blocking IO to avoid blocking the async runtime
@@ -80,7 +79,7 @@ impl Flasher {
 
             for chunk in data_rx {
                 buffer.extend_from_slice(&chunk);
-                
+
                 // Write aligned blocks
                 while buffer.len() >= WRITE_BUFFER_SIZE {
                     // Extract exact buffer size
@@ -89,10 +88,10 @@ impl Flasher {
                     // Actually, simple way:
                     file.write_all(&buffer[..WRITE_BUFFER_SIZE])
                         .context("Failed to write to device (aligned block)")?;
-                    
+
                     // Remove Written part efficiently
                     buffer.drain(..WRITE_BUFFER_SIZE);
-                    
+
                     _written += WRITE_BUFFER_SIZE as u64;
                 }
             }
@@ -109,19 +108,19 @@ impl Flasher {
                 // Ignore "inappropriate ioctl for device" (ENOTTY/25) on macOS/BSD raw devices
                 #[cfg(any(target_os = "macos", target_os = "freebsd"))]
                 if let Some(code) = e.raw_os_error() {
-                     if code == 25 {
-                         return Ok(());
-                     }
+                    if code == 25 {
+                        return Ok(());
+                    }
                 }
                 return Err(anyhow::Error::new(e).context("Failed to sync device"));
             }
-            
+
             Ok(())
         });
 
         // 5. Producer (Downloader)
         let mut stream = self.client.get(&url).send().await?.bytes_stream();
-        
+
         let start_time = Instant::now();
         let mut bytes_processed = 0u64;
         let mut last_update_time = Instant::now();
@@ -129,13 +128,13 @@ impl Flasher {
         while let Some(item) = stream.next().await {
             let chunk = item.context("Error downloading chunk")?;
             let chunk_len = chunk.len();
-            
+
             // Send to writer (blocking if full)
             if let Err(_) = data_tx.send(chunk.to_vec()) {
                 // Writer thread died, probably due to IO error.
                 // Drop tx to ensure we stop producing.
                 drop(data_tx);
-                
+
                 // Join writer to get the actual error
                 match writer_handle.join() {
                     Ok(result) => return result.context("Writer thread failed"),
@@ -144,7 +143,7 @@ impl Flasher {
             }
 
             bytes_processed += chunk_len as u64;
-            
+
             // Update Progress
             let now = Instant::now();
             if now.duration_since(last_update_time).as_millis() > 100 {
@@ -164,7 +163,7 @@ impl Flasher {
                 last_update_time = now;
             }
         }
-        
+
         // Drop tx to signal EOF to writer
         drop(data_tx);
 

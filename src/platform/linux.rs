@@ -30,7 +30,10 @@ impl LinuxDiskManager {
             }
 
             let is_disk = block.device_type == "disk" || block.device_type == "rom";
-            let path = block.path.clone().unwrap_or_else(|| format!("/dev/{}", block.name));
+            let path = block
+                .path
+                .clone()
+                .unwrap_or_else(|| format!("/dev/{}", block.name));
 
             // Check if this is the root device or contains the root partition
             let is_root_device = root_device
@@ -39,7 +42,7 @@ impl LinuxDiskManager {
                 .unwrap_or(false);
 
             // Skip anything that looks like a partition (e.g. sda1, nvme0n1p1) if it's not a whole disk
-            // Note: lsblk --json usually shows partitions as children. 
+            // Note: lsblk --json usually shows partitions as children.
             // If it's a 'part' type, we skip it.
             if block.device_type == "part" {
                 continue;
@@ -186,8 +189,8 @@ impl DiskManager for LinuxDiskManager {
         let output = Command::new("eject").arg(path).output()?;
 
         if !output.status.success() {
-             let stderr = String::from_utf8_lossy(&output.stderr);
-             return Err(DiskError::CommandFailed(stderr.to_string()));
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(DiskError::CommandFailed(stderr.to_string()));
         }
 
         Ok(())
@@ -229,6 +232,10 @@ impl DiskManager for LinuxDiskManager {
     }
 
     fn has_privileges(&self) -> bool {
-        unsafe { libc::getuid() == 0 }
+        Command::new("id")
+            .arg("-u")
+            .output()
+            .map(|output| String::from_utf8_lossy(&output.stdout).trim() == "0")
+            .unwrap_or(false)
     }
 }
